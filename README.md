@@ -1,117 +1,123 @@
-# Swayam — एजेंटिक AI हार्नेस
+# netraindio
 
-**Swayam** एक एजेंटिक AI है: लक्ष्य मिलता है, योजना बनती है, औज़ार चलते हैं, ज़रूरत पड़े तो सबएजेंट समानांतर भेजे जाते हैं, और हर कदम एक अपरिवर्तनीय event log में दर्ज होता है।
+**netraindio** is an agentic AI workbench. You give it a goal; it plans, calls tools, delegates to subagents when the work splits, and shows every step in a live ledger — with an approval gate before anything writes, and a verified / assumed / could-not-do footer on every result.
 
-Muse Spark / Muse Code जैसी एजेंटिक प्रणालियों की जो चार चीज़ें उन्हें चैटबॉट से अलग करती हैं, वही चारों यहाँ बनी हैं — अपने कोड से:
+**Live:** https://netraindio.movaindia.workers.dev
 
-| वह चीज़ | यहाँ कहाँ है |
-|---|---|
-| **event log** — हर मॉडल कॉल, औज़ार, मंज़ूरी, जवाब दर्ज; replay-exact | `src/runtime/eventlog.js` |
-| **plan gate** — पहले योजना, इंसान की मंज़ूरी, फिर कोई औज़ार नहीं | `src/runtime/kernel.js` + `skills.js` |
-| **सबएजेंट** — मुख्य एजेंट काम बाँटता है, समानांतर चलता है | `src/runtime/subagents.js` |
-| **context compaction** — लंबे काम में पुराने कदम सार बनकर सिकुड़ते हैं | `src/runtime/context.js` |
-
-**लाइव:** https://swayam.movaindia.workers.dev — मुफ़्त Cloudflare Worker, ₹0/महीना।
-
-[![License: MIT](https://img.shields.io/badge/license-MIT-7c9cff.svg)](LICENSE)
+Zero npm dependencies. Zero vendor SDKs. The harness, the tools and the interface are all in this repository.
 
 ---
 
-## अंदर कैसे चलता है
+## What was studied, and what changed
+
+The interface was rebuilt after reading teardowns of how the strongest agent products handle the same problems. The patterns that mattered, and where they live here:
+
+| Pattern observed in the wild | What this build does |
+|---|---|
+| **Live step ledger** — a vertical list with pending / running / done / failed glyphs, collapsing to one line and expanding to detail (Claude Code, Cursor, Manus) | `.ledger` in the thread: one row per step, click to open thought, arguments and output |
+| **Tool-call cards** — name, input, output, duration; failures stay visible instead of being retried away (Claude Code, ChatGPT Agent) | every row carries its tool, its args, its duration and a red ✗ when it failed — failed steps are never hidden |
+| **Reasoning disclosure** — thinking collapsed by default, never in the main flow (Claude, Cursor, Manus) | `thought` sits inside the expanded step, styled as an aside, not as prose |
+| **Editable plan behind approval** — numbered steps, remove or reorder, one Run button (Devin, Claude Code plan mode, Replit) | plan card with a `×` per step, an effort estimate, and Run — the edited plan is what executes |
+| **Effort preview** — tell the user whether this is 30 seconds or 30 minutes (Manus credits, Setproduct pattern 4) | `~Ns · N कदम` next to Run and above the plan |
+| **Risk-graded permissions** — read is silent, write asks, destructive always asks (Claude Code, Perplexity tool settings) | tools declare `risk: "read" \| "write"`; write tools stop at the gate every time |
+| **Progressive disclosure of status** — one line at the top, tap for the list, tap again for detail (Meta Muse's status display) | header status pill → drawer with *doing / done / needs approval* → full event log in the inspector |
+| **Trust footer** — verified, assumed, could not do, in three parts (Devin's blockers report, Setproduct pattern 14) | `report` object on every response, rendered as three columns |
+| **Sessions as places, not threads** — a sidebar of ongoing work (Meta Muse Spaces, Manus tasks) | left rail lists runs; clicking one replays its event log into the thread |
+| **Auditable action trail** — every action recorded and replayable (Muse Code's local event log) | append-only `EventLog` with `replay()` and JSONL export |
+
+The visual direction is deliberately quiet: one accent (clay), hairline rules, monospace for machine facts, 15px text on a near-black or warm-paper canvas, and no gradient furniture. A tool that shows you its work should not shout.
+
+---
+
+## How it runs
 
 ```
-लक्ष्य
-  │
-  ├─ plan ────────────► योजना (औज़ार + args) ──► [मंज़ूरी?] ──► रुको
-  │                                                    │
-  ▼                                                    ▼
-decide ◄──────────── context (digest + recent) ─── act ──► observe ──► event log
-  │                                                              │
-  └── final ───────────────────────────────────────────────────► जवाब + artifacts
+goal → plan → [approval gate] → decide → act → observe → compact → decide → … → answer
+                                                        │
+                                                   subagents (parallel)
 ```
 
-- **8 कदम** की सीमा, **दो बार एक ही गलती** पर रुकना, और हर रुकने का कारण जवाब में लिखा जाता है।
-- **लिखने वाले औज़ार** (`note_save`, `write_artifact`) मंज़ूरी के बिना नहीं चलते।
-- **भरोसा-स्कोर** गणना से आता है: कोई सफल कदम नहीं = 0.12; साफ़ खत्म + दो सफल कदम = 0.7।
+- **8 steps** per run, **3** per subagent; the run stops on a final answer, on the same tool failing twice, or on the budget — and names which in `stopped`.
+- **Event log** (`src/runtime/eventlog.js`): every goal, plan, thought, tool call, subagent result, approval and answer appended once with a sequence number; `replay()` rebuilds state, `toJSONL()` exports a session.
+- **Context compaction** (`src/runtime/context.js`): last six events verbatim, everything older reduced to a five-sentence digest by our own extractive summariser.
+- **Subagents** (`src/runtime/subagents.js`): up to three in parallel, read-only tools, own budget, one summary each.
+- **Plan review** (`src/runtime/skills.js`): unknown tools, missing arguments and bloated plans are caught before a single tool runs.
 
-## तीन मॉडल बैकएंड (एक ही इंटरफ़ेस)
+## Models
 
-1. **Workers AI** — Cloudflare के भीतर, आपके ही खाते में, मुफ़्त दैनिक कोटा। लाइव ऐप इसी पर चल रहा है। *(वज़न Cloudflare के हैं, आपके नहीं — यह साफ़ लिखा है।)*
-2. **LocalModel** — आपकी मशीन पर open weights (Ollama / llama.cpp / LM Studio, या Muse Spark Open / Qwen)। यही एकमात्र रास्ता है जहाँ मॉडल सचमुच आपका है।
-3. **RuleModel** — हमारा ही deterministic planner। मॉडल न हो तो भी एजेंट ज़िंदा रहता है; जो नहीं कर सकता, साफ़ मना कर देता है।
+Three backends behind one interface (`src/model/index.js`), chosen automatically:
 
-`GET /api/health` बताता है कौन चल रहा है।
+1. **Workers AI** — Cloudflare's hosted models on the free daily allowance, inside your own account. What the live demo uses. *The weights are Cloudflare's, not yours.*
+2. **LocalModel** — any OpenAI-compatible server on your own machine (Ollama, llama.cpp, LM Studio, or open weights such as Muse Spark Open). The only option where the model is genuinely yours.
+3. **RuleModel** — our deterministic planner. No model at all: it does what the tools allow and refuses the rest in plain words.
 
-## 30 सेकंड में
+`GET /api/health` always names the active backend.
+
+## Run it
 
 ```bash
-git clone https://github.com/galeoindus/swayam.git
-cd swayam
-npm start          # http://localhost:8789 — कोई install नहीं
-node --test test/  # 29 टेस्ट, नेटवर्क के बिना
-npm run demo       # पूरा हार्नेस टर्मिनल में: योजना, gate, कदम, event log
+git clone https://github.com/galeoindus/netraindio.git
+cd netraindio
+npm start           # http://localhost:8789, nothing to install
+node --test test/   # 29 tests, no network
+npm run demo        # plan, gate, approval, steps and event log in the terminal
 ```
 
 ## API
 
 ```bash
-# सामान्य रन
-curl -s -X POST https://swayam.movaindia.workers.dev/api/run \
+# run a goal
+curl -s -X POST https://netraindio.movaindia.workers.dev/api/run \
   -H 'content-type: application/json' \
-  -d '{"goal":"12 km को miles में बदलो"}' | jq '.answer, .steps'
+  -d '{"goal":"12 km को miles में बदलो"}' | jq '.answer, .report'
 
-# योजना मोड — कोई औज़ार नहीं चलेगा
-curl -s -X POST .../api/run -d '{"goal":"https://example.com पढ़ो","mode":"plan"}' | jq '.plan'
+# plan first, no tool runs
+curl -s -X POST .../api/run -d '{"goal":"https://example.com पढ़ो","mode":"plan"}' | jq '.plan, .estimate'
 
-# मंज़ूरी के बाद वही लक्ष्य
-curl -s -X POST .../api/run -d '{"goal":"https://example.com पढ़ो","approved":true}' | jq '.status'
+# approve, optionally with an edited plan
+curl -s -X POST .../api/run -d '{"goal":"...","approved":true,"plan":[{"tool":"fetch_url","args":{"url":"https://example.com"}}]}'
 
-# पूरा event log
-curl -s .../api/session/<sessionId> | jq '.events | length'
+# the audit trail
+curl -s .../api/session/<id> | jq '.events | length'
+curl -s .../api/sessions | jq '.sessions[0]'
 ```
 
-| रूट | क्या देता है |
+| Route | Returns |
 |---|---|
-| `POST /api/run` | `{goal, sessionId, mode, approved}` → जवाब, योजना, कदम, भरोसा, artifacts |
-| `GET /api/session/:id` | event log + replay किया हुआ state |
-| `GET /api/tools` | 12 औज़ार, जोखिम-स्तर के साथ |
-| `GET /api/health` | मॉडल, रनटाइम, औज़ार |
-| `GET /api/news?q=` | अपना RSS + BM25 इंडेक्स |
+| `POST /api/run` | answer, plan, steps, report, confidence, stop reason |
+| `GET /api/session/:id` | full event log, replayed state, artifacts |
+| `GET /api/sessions` | session list for the rail |
+| `GET /api/tools` | 12 tools with risk levels |
+| `GET /api/health` | model, tools, runtime |
+| `GET /api/news?q=` | own RSS + BM25 index |
 
-## ढाँचा
+## Structure
 
 ```
 src/
-  runtime/
-    eventlog.js    अपरिवर्तनीय event log, replay, JSONL export
-    kernel.js      plan → gate → decide → act → observe लूप
-    subagents.js   समानांतर सबएजेंट (read-only औज़ार, 3 कदम)
-    context.js     compaction: पुराने कदम सार बनकर, हाल के वैसे ही
-    skills.js      /plan /grill /goal /research + योजना की जाँच
-  model/index.js   Workers AI | LocalModel | RuleModel — एक इंटरफ़ेस
-  tools/           fetch, summarise, news, calculator, units, clock,
-                   text stats, artifacts, notes
-  lib/             अपना text/rss/bm25/summarise
-  server.js        Worker और Node, एक ही कोड
-public/            workbench: योजना कार्ड, मंज़ूरी बटन, कदम, event log
+  runtime/eventlog.js   append-only log, replay, JSONL
+  runtime/kernel.js     plan → gate → decide → act → observe loop, report footer
+  runtime/subagents.js  parallel delegation, read-only tools
+  runtime/context.js    compaction: digest + recent
+  runtime/skills.js     /plan /grill /goal /research, plan review
+  model/index.js        Workers AI | local open weights | rule planner
+  tools/                fetch, summarise, news, calculator, units, clock,
+                        text stats, artifacts, notes
+  lib/                  own text, RSS, BM25, summariser
+  server.js             one handler for Worker and Node
+public/                 the workbench: ledger, plan gate, report, inspector
 ```
 
-डिज़ाइन: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · मॉडल: [docs/MODELS.md](docs/MODELS.md) · डिप्लॉय: [docs/DEPLOY.md](docs/DEPLOY.md)
+Design notes: `docs/ARCHITECTURE.md` · models: `docs/MODELS.md` · deploy: `docs/DEPLOY.md`
 
-## ईमानदार सीमाएँ
+## Honest limits
 
-- सामान्य सोच मॉडल से आती है; हार्नेस उसे अनुशासित करता है — जवाब की गुणवत्ता मॉडल जितनी ही होगी।
-- Workers AI का मुफ़्त कोटा सीमित है (रोज़ का allowance); खत्म होने पर rule planner चालू रहता है।
-- event log इस वक़्त isolate की मेमोरी में है — बहुत सारे यूज़र के लिए KV/R2 जोड़ना होगा (मुफ़्त tier में भी)।
-- सबएजेंट read-only औज़ारों तक सीमित हैं, ताकि समानांतर लिखाई आपस में टकराए नहीं।
-- कोई shell नहीं, कोई फ़ाइल-सिस्टम नहीं — यह जान-बूझकर है: जो नहीं है, वह दुर्घटना नहीं कर सकता।
+- General reasoning comes from a model; the harness only disciplines it. Answer quality tracks the model.
+- Workers AI's free allowance is finite; when it runs out the rule planner takes over.
+- The event log lives in isolate memory — durable history needs KV or R2.
+- Subagents are read-only so parallel writes cannot collide.
+- No shell, no filesystem, no arbitrary code execution. A capability that does not exist cannot be abused.
 
-## लाइसेंस
+## Licence
 
-MIT © 2026 Bhola Kumar — [LICENSE](LICENSE)
-
----
-
-## English summary
-
-**Swayam** is an agentic AI harness, not a chatbot: a goal is planned, the plan can be held at an approval gate, then a kernel loop decides one action at a time, executes it, observes, compacts context and repeats — with every event appended to an immutable, replayable log. Subagents fan out in parallel for independent work; write tools require approval; confidence is computed rather than claimed. Three interchangeable model backends sit behind one interface: Cloudflare Workers AI (free tier, inside your own account — what the live deployment uses), a local open-weights model on your own machine, and a deterministic rule planner so the agent still works with no model at all. Twelve tools, 29 tests, zero npm dependencies, MIT.
+MIT © 2026 Bhola Kumar — see `LICENSE`.

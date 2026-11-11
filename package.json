@@ -1,7 +1,7 @@
 {
-  "name": "swayam",
-  "version": "2.0.0",
-  "description": "Swayam — an agentic AI harness: event log, approval-gated plans, parallel subagents, context compaction, tool loop. No vendor SDK, zero dependencies.",
+  "name": "netraindio",
+  "version": "3.0.0",
+  "description": "netraindio — an agentic AI workbench: live step ledger, approval-gated plans, parallel subagents, context compaction. Zero dependencies.",
   "type": "module",
   "license": "MIT",
   "author": "Bhola Kumar",
@@ -14,10 +14,10 @@
     "cloudflare-workers",
     "open-source"
   ],
-  "homepage": "https://github.com/galeoindus/swayam",
+  "homepage": "https://github.com/galeoindus/netraindio",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/galeoindus/swayam.git"
+    "url": "git+https://github.com/galeoindus/netraindio.git"
   },
   "engines": {
     "node": ">=20"

@@ -68,6 +68,24 @@ export class EventLog {
     return this.events(sessionId).map((event) => JSON.stringify(event)).join('\n');
   }
 
+  /** Session summaries for the sidebar: newest first. */
+  list() {
+    return [...this.sessions.values()]
+      .map((entry) => {
+        const goal = entry.events.find((event) => event.type === 'goal');
+        const answer = [...entry.events].reverse().find((event) => event.type === 'answer');
+        return {
+          id: entry.id,
+          goal: goal?.goal ?? '',
+          events: entry.events.length,
+          steps: entry.events.filter((event) => event.type === 'tool').length,
+          answered: Boolean(answer),
+          updatedAt: new Date(entry.touchedAt).toISOString(),
+        };
+      })
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
   evict() {
     if (this.sessions.size <= this.maxSessions) return;
     const oldest = [...this.sessions.entries()].sort((a, b) => a[1].touchedAt - b[1].touchedAt)[0];

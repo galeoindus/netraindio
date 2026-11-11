@@ -79,13 +79,14 @@ export class Kernel {
 
     // ── 1. plan ──────────────────────────────────────────────────────────
     let plan = { steps: [] };
+    const planSource = Array.isArray(options.plan) && options.plan.length ? 'user' : 'model';
     try {
-      plan = await this.model.plan({ goal, tools });
+      plan = planSource === 'user' ? { steps: options.plan } : await this.model.plan({ goal, tools });
     } catch (error) {
       this.log.append(sessionId, { type: 'error', where: 'plan', message: String(error?.message ?? error) });
     }
     const review = grillPlan({ goal, plan, tools });
-    this.log.append(sessionId, { type: 'plan', steps: plan.steps ?? [], warnings: review.warnings });
+    this.log.append(sessionId, { type: 'plan', steps: plan.steps ?? [], warnings: review.warnings, source: planSource });
 
     if (needsApproval(mode) && !approved) {
       this.log.append(sessionId, { type: 'approval', decision: 'requested', plan: plan.steps ?? [] });
@@ -93,6 +94,8 @@ export class Kernel {
         status: 'awaiting_approval',
         sessionId,
         plan: plan.steps ?? [],
+        planSource,
+        estimate: this.estimate(plan.steps ?? []),
         warnings: review.warnings,
         answer: 'योजना तैयार है। मंज़ूरी मिलने पर मैं इसे चलाऊँगा — तब तक कोई औज़ार नहीं चलेगा।',
         steps: [],
@@ -180,7 +183,7 @@ export class Kernel {
         observation: observation.observation,
         ms: observation.ms,
       });
-      steps.push({ step: steps.length + 1, ...observation });
+      steps.push({ step: steps.length + 1, thought: String(decision.thought ?? ''), ...observation });
 
       const lastTwo = steps.slice(-2);
       if (lastTwo.length === 2 && lastTwo.every((step) => !step.ok) && lastTwo[0].tool === lastTwo[1].tool) {
@@ -199,9 +202,11 @@ export class Kernel {
       status: 'done',
       sessionId,
       plan: plan.steps ?? [],
+      planSource,
       warnings: review.warnings,
       answer,
       steps,
+      report: this.report(steps, stopped, planSource),
       stopped,
       model: this.model.name,
       confidence: this.score(steps, stopped),
@@ -209,6 +214,29 @@ export class Kernel {
       artifacts: session.state.artifacts,
       events: this.log.events(sessionId).length,
     };
+  }
+
+  /** How big is this job? Shown next to Run so nobody waits blind. */
+  estimate(planSteps) {
+    const seconds = Math.max(1, planSteps.length * 2);
+    return { steps: planSteps.length, effort: `~${seconds}s`, note: planSteps.length > 3 ? 'multi-step' : 'short' };
+  }
+
+  /** Verified / assumed / could not do — the trust footer. */
+  report(steps, stopped, planSource) {
+    const verified = steps
+      .filter((step) => step.ok)
+      .map((step) => `${step.tool}${step.ms ? ` (${step.ms} ms)` : ''}`);
+    const couldNot = steps.filter((step) => !step.ok).map((step) => `${step.tool}: ${step.observation}`);
+    if (stopped === 'no-plan') couldNot.push('no tool in this runtime can serve the goal');
+    if (stopped === 'budget') couldNot.push('step budget ran out before the goal was finished');
+    if (stopped === 'repeated-failure') couldNot.push('the same tool failed twice; the run was stopped');
+    if (stopped === 'model-error') couldNot.push('the model backend failed; the answer uses only what was already collected');
+    const assumed = [];
+    if (planSource === 'model') assumed.push('the plan was proposed by the model and not edited by you');
+    if (!steps.length) assumed.push('nothing was executed');
+    assumed.push(`reasoning backend: ${this.model.name}`);
+    return { verified, assumed, couldNot };
   }
 
   composeAnswer(goal, steps, stopped) {

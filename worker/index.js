@@ -1,5 +1,5 @@
 /**
- * worker/index.js — Cloudflare Worker entry point.
+ * worker/index.js — netraindio — Cloudflare Worker entry point.
  * The AI binding (env.AI) is optional: with it the agent reasons generally on
  * the free daily allowance; without it, the rule planner keeps it working.
  */

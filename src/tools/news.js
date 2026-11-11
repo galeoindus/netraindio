@@ -37,7 +37,7 @@ export class NewsStore {
     this.inFlight = (async () => {
       const results = await Promise.allSettled(
         this.feeds.map(async (feed) => {
-          const init = { headers: { 'user-agent': 'SwayamAgent/1.0' } };
+          const init = { headers: { 'user-agent': 'netraindio/3.0' } };
           if (AbortSignal?.timeout) init.signal = AbortSignal.timeout(8000);
           const response = await this.fetchImpl(feed.url, init);
           if (!response.ok) throw new Error(`${feed.name}: HTTP ${response.status}`);

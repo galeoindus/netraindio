@@ -45,7 +45,7 @@ export function fetchUrlTool() {
       if (!/^https?:$/.test(parsed.protocol)) throw new Error('only http and https URLs are allowed');
 
       const init = {
-        headers: { 'user-agent': 'SwayamAgent/1.0 (+https://github.com/galeoindus/swayam-agent)' },
+        headers: { 'user-agent': 'netraindio/3.0 (+https://github.com/galeoindus/netraindio)' },
         redirect: 'follow',
       };
       if (AbortSignal?.timeout) init.signal = AbortSignal.timeout(FETCH_TIMEOUT);

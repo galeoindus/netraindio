@@ -1,7 +1,7 @@
 {
-  "name": "Swayam — एजेंटिक AI",
-  "short_name": "Swayam",
-  "description": "An agentic AI harness: event log, approval-gated plans, subagents, compaction.",
+  "name": "netraindio — agentic AI",
+  "short_name": "netraindio",
+  "description": "An agent that plans, acts with tools and shows every step in a live ledger.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080b14",

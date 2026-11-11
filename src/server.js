@@ -73,7 +73,7 @@ export async function handleApi(request, app) {
     if (url.pathname === '/api/health') {
       return json({
         ok: true,
-        engine: 'swayam/2.0',
+        engine: 'netraindio/3.0',
         model: app.model.name,
         modelAvailable: app.model.available !== false,
         tools: toolSpecs(app.registry).map((tool) => tool.name),
@@ -84,6 +84,10 @@ export async function handleApi(request, app) {
 
     if (url.pathname === '/api/tools') {
       return json({ tools: toolSpecs(app.registry) });
+    }
+
+    if (url.pathname === '/api/sessions') {
+      return json({ sessions: app.log.list() });
     }
 
     if (url.pathname.startsWith('/api/session/')) {
@@ -117,6 +121,7 @@ export async function handleApi(request, app) {
         sessionId,
         mode,
         approved: Boolean(body.approved),
+        plan: Array.isArray(body.plan) ? body.plan.slice(0, 8) : undefined,
       });
       return json(result);
     }
