@@ -9,6 +9,7 @@
  */
 
 import { toolSpecs, validateArgs } from '../tools/index.js';
+import { detectLanguage } from '../lib/text.js';
 import { buildContext } from './context.js';
 import { grillPlan, needsApproval } from './skills.js';
 import { Subagents } from './subagents.js';
@@ -75,13 +76,15 @@ export class Kernel {
     const ctx = this.context(sessionId);
     const session = ctx.session;
 
-    this.log.append(sessionId, { type: 'goal', goal, mode, approved });
+    const language = detectLanguage(goal);
+    this.model.reset?.();
+    this.log.append(sessionId, { type: 'goal', goal, mode, approved, language: language.code });
 
     // ── 1. plan ──────────────────────────────────────────────────────────
     let plan = { steps: [] };
     const planSource = Array.isArray(options.plan) && options.plan.length ? 'user' : 'model';
     try {
-      plan = planSource === 'user' ? { steps: options.plan } : await this.model.plan({ goal, tools });
+      plan = planSource === 'user' ? { steps: options.plan } : await this.model.plan({ goal, tools, language });
     } catch (error) {
       this.log.append(sessionId, { type: 'error', where: 'plan', message: String(error?.message ?? error) });
     }
@@ -116,7 +119,7 @@ export class Kernel {
 
       let decision;
       try {
-        decision = await this.model.decide({ goal, plan: plan.steps ?? [], steps, tools, digest });
+        decision = await this.model.decide({ goal, plan: plan.steps ?? [], steps, tools, digest, language });
       } catch (error) {
         this.log.append(sessionId, { type: 'error', where: 'decide', message: String(error?.message ?? error) });
         stopped = 'model-error';
@@ -206,6 +209,7 @@ export class Kernel {
       warnings: review.warnings,
       answer,
       steps,
+      language: language.code,
       report: this.report(steps, stopped, planSource),
       stopped,
       model: this.model.name,

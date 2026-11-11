@@ -18,6 +18,11 @@
  *   decide({goal, plan, steps, tools}) -> { thought, tool, args } | { thought, final }
  */
 
+const LANGUAGE_LINE = (language) =>
+  language && language.code !== 'en'
+    ? `Write every user-facing string (thought, final) in ${language.name}. Tool names and arguments stay in English.`
+    : 'Write every user-facing string in English.';
+
 const DECISION_SCHEMA = `Reply with ONLY a JSON object.
 To act:   {"thought": "...", "tool": "<name>", "args": {...}}
 To finish:{"thought": "...", "final": "the complete answer for the user"}`;
@@ -86,9 +91,10 @@ export class WorkersAiModel {
     throw new Error(`Workers AI unavailable: ${lastError?.message ?? 'no model answered'}`);
   }
 
-  async plan({ goal, tools }) {
+  async plan({ goal, tools, language }) {
     const prompt = [
       'Break this goal into at most 4 concrete steps. Each step names one tool.',
+      LANGUAGE_LINE(language),
       DECISION_SCHEMA.replace('"tool"', '"tool" (one of the list)'),
       '',
       `Goal: ${goal}`,
@@ -103,10 +109,11 @@ export class WorkersAiModel {
     return { steps: steps.filter((step) => step?.tool).slice(0, 4) };
   }
 
-  async decide({ goal, plan, steps, tools, digest }) {
+  async decide({ goal, plan, steps, tools, digest, language }) {
     const prompt = [
       'You are running a tool loop. Decide the single next action, or finish.',
       DECISION_SCHEMA,
+      LANGUAGE_LINE(language),
       '',
       `Goal: ${goal}`,
       `Plan: ${plan.map((step, index) => `${index + 1}) ${step.title ?? step.tool}`).join(' | ') || '(none)'}`,
@@ -268,8 +275,54 @@ export class RuleModel {
 
 /* ───────────────────────────── factory ───────────────────────────── */
 
+/**
+ * A hosted model is powerful and unreliable in the same breath: one malformed
+ * JSON reply and a run used to die. HybridModel keeps the model for judgement
+ * and hands the wheel to the rule planner the moment it stops making sense.
+ * The user never sees a dead end because a model had a bad day.
+ */
+export class HybridModel {
+  constructor(primary, fallback = new RuleModel()) {
+    this.primary = primary;
+    this.fallback = fallback;
+    this.name = `${primary.name} + rule fallback`;
+    this.failures = 0;
+  }
+
+  get available() {
+    return true;
+  }
+
+  reset() {
+    this.failures = 0;
+  }
+
+  async plan(payload) {
+    try {
+      const plan = await this.primary.plan(payload);
+      if (plan?.steps?.length) return plan;
+    } catch {
+      this.failures += 1;
+    }
+    return this.fallback.plan(payload);
+  }
+
+  async decide(payload) {
+    if (this.failures >= 2) return this.fallback.decide(payload);
+    try {
+      const decision = await this.primary.decide(payload);
+      const usable = decision && ((decision.final !== null && decision.final !== undefined) || decision.tool);
+      if (usable) return decision;
+      this.failures += 1;
+    } catch {
+      this.failures += 1;
+    }
+    return this.fallback.decide(payload);
+  }
+}
+
 export function createModel(env = {}) {
-  if (env.AI?.run) return new WorkersAiModel(env);
-  if (env.LOCAL_LLM_URL) return new LocalModel({ baseUrl: env.LOCAL_LLM_URL, model: env.LOCAL_LLM_MODEL });
+  if (env.AI?.run) return new HybridModel(new WorkersAiModel(env));
+  if (env.LOCAL_LLM_URL) return new HybridModel(new LocalModel({ baseUrl: env.LOCAL_LLM_URL, model: env.LOCAL_LLM_MODEL }));
   return new RuleModel();
 }

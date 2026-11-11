@@ -49,7 +49,22 @@ const banner = `/**
  * Source: https://github.com/galeoindus/netraindio
  */`;
 
-const bundle = `${banner}\n\n${parts.join('\n\n')}\n`;
+const PUBLIC = [
+  ['/index.html', 'public/index.html', 'text/html; charset=utf-8'],
+  ['/styles.css', 'public/styles.css', 'text/css; charset=utf-8'],
+  ['/app.js', 'public/app.js', 'text/javascript; charset=utf-8'],
+  ['/icon.svg', 'public/icon.svg', 'image/svg+xml'],
+  ['/manifest.webmanifest', 'public/manifest.webmanifest', 'application/manifest+json'],
+];
+
+const embedded = {};
+for (const [urlPath, file, type] of PUBLIC) {
+  embedded[urlPath] = { type, body: await readFile(resolve(ROOT, file), 'utf8') };
+}
+
+const assetsModule = `\n// ─── embedded assets ──────────────────────────────────────\nconst __ASSETS = ${JSON.stringify(embedded)};\n`;
+
+const bundle = `${banner}\n\n${parts.join('\n\n')}\n${assetsModule}`;
 await mkdir(resolve(ROOT, 'dist'), { recursive: true });
 await writeFile(resolve(ROOT, 'dist/worker.js'), bundle, 'utf8');
 console.log(`dist/worker.js — ${(bundle.length / 1024).toFixed(1)} KB, default export: ${/export\s+default/.test(bundle)}`);

@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>netraindio — agentic AI</title>
 <meta name="description" content="netraindio: an agent that plans, acts with tools, delegates to subagents and shows every step in a live ledger." />
 <meta name="theme-color" content="#0a0a0b" />
@@ -18,83 +18,63 @@
     <span class="wordmark">netraindio</span>
   </div>
 
-  <div class="status" id="status" role="status" aria-live="polite">
+  <div class="status" role="status" aria-live="polite">
     <span class="dot" id="status-dot"></span>
-    <span class="status-text" id="status-text">ready</span>
-    <button class="status-more" id="status-more" type="button" aria-expanded="false" title="What has it done?">
-      <span aria-hidden="true">▾</span>
-    </button>
+    <span id="status-text">ready</span>
   </div>
 
   <div class="topbar-right">
-    <span class="chip" id="model-chip">model</span>
-    <button class="icon-btn" id="theme-btn" type="button" title="Light / dark" aria-label="Toggle theme">◐</button>
-    <a class="icon-btn" href="https://github.com/galeoindus/netraindio" target="_blank" rel="noreferrer" title="Source">⌥</a>
+    <span class="chip" id="model-chip">engine</span>
+    <button class="icon-btn" id="theme-btn" type="button" aria-label="Toggle theme" title="Light / dark">◐</button>
   </div>
 </header>
 
-<div class="status-drawer" id="status-drawer" hidden>
-  <div class="drawer-inner">
-    <div class="drawer-col">
-      <h4>कर रहा है</h4>
-      <ul id="drawer-now"><li class="muted">कुछ नहीं</li></ul>
-    </div>
-    <div class="drawer-col">
-      <h4>कर चुका</h4>
-      <ul id="drawer-done"><li class="muted">कुछ नहीं</li></ul>
-    </div>
-    <div class="drawer-col">
-      <h4>मंज़ूरी चाहिए</h4>
-      <ul id="drawer-ask"><li class="muted">कुछ नहीं</li></ul>
-    </div>
-  </div>
-</div>
-
 <main class="shell">
-  <nav class="rail" aria-label="Sessions">
-    <button class="new-run" id="new-run" type="button"><span aria-hidden="true">＋</span> नया काम</button>
-    <p class="rail-label">इस सत्र के काम</p>
-    <ul class="session-list" id="session-list"><li class="muted small">अभी खाली</li></ul>
+  <nav class="rail" aria-label="Runs">
+    <button class="new-run" id="new-run" type="button">+ New run</button>
+    <p class="rail-label">Runs</p>
+    <ul class="session-list" id="session-list"><li class="empty-row">No runs yet</li></ul>
     <div class="rail-foot">
-      <span class="muted small">12 औज़ार · event log · subagents</span>
+      <span>12 tools · event log</span>
+      <a href="https://github.com/galeoindus/netraindio" target="_blank" rel="noreferrer">Source</a>
     </div>
   </nav>
 
   <section class="thread-wrap">
     <div class="thread" id="thread">
-      <div class="empty" id="empty">
-        <h1>क्या करना है?</h1>
-        <p>लक्ष्य लिखिए। मैं योजना बनाऊँगा, औज़ार चलाऊँगा और हर कदम इसी थ्रेड में दिखाऊँगा — जो नहीं कर सकता, वह कह दूँगा।</p>
+      <div class="intro" id="intro">
+        <h1>What should it do?</h1>
+        <p>Give a goal. netraindio plans, runs tools, delegates when the work splits, and shows every step — including the ones that fail.</p>
         <div class="starters" id="starters"></div>
       </div>
     </div>
 
     <form class="composer" id="composer">
       <div class="composer-box">
-        <label class="sr-only" for="goal">लक्ष्य</label>
-        <textarea id="goal" rows="1" maxlength="800" placeholder="जैसे: https://example.com पढ़ो और सारांश दो"></textarea>
+        <label class="sr-only" for="goal">Goal</label>
+        <textarea id="goal" rows="1" maxlength="800" placeholder="e.g. read https://example.com and summarise it"></textarea>
         <div class="composer-bar">
           <div class="modes" role="group" aria-label="Mode">
-            <button type="button" class="mode is-on" data-mode="agent">काम पूरा करो</button>
-            <button type="button" class="mode" data-mode="plan">पहले योजना</button>
+            <button type="button" class="mode is-on" data-mode="agent">Run</button>
+            <button type="button" class="mode" data-mode="plan">Plan first</button>
           </div>
           <span class="effort" id="effort"></span>
-          <button class="send" id="send" type="submit" title="Run (Enter)">↵</button>
+          <button class="send" id="send" type="submit" aria-label="Run" title="Run (Enter)">↑</button>
         </div>
       </div>
-      <p class="composer-note">netraindio योजना बनाकर चलता है · लिखने वाले औज़ार मंज़ूरी के बाद · हर कदम event log में दर्ज</p>
+      <p class="composer-note">Plans before it acts · write tools need approval · every step is logged</p>
     </form>
   </section>
 
   <aside class="inspector" aria-label="Inspector">
     <div class="tabs" role="tablist">
-      <button class="tab is-on" role="tab" data-tab="artifacts">आर्टिफ़ैक्ट</button>
-      <button class="tab" role="tab" data-tab="plan">योजना</button>
-      <button class="tab" role="tab" data-tab="events">लॉग</button>
+      <button class="tab is-on" role="tab" data-tab="artifacts">Artifacts</button>
+      <button class="tab" role="tab" data-tab="plan">Plan</button>
+      <button class="tab" role="tab" data-tab="events">Log</button>
     </div>
-    <div class="pane is-on" id="pane-artifacts"><p class="muted small">अभी कुछ नहीं।</p></div>
-    <div class="pane" id="pane-plan"><p class="muted small">कोई योजना नहीं।</p></div>
-    <div class="pane" id="pane-events"><p class="muted small">कोई इवेंट नहीं।</p></div>
+    <div class="pane is-on" id="pane-artifacts"><p class="empty-row">Nothing yet</p></div>
+    <div class="pane" id="pane-plan"><p class="empty-row">No plan</p></div>
+    <div class="pane" id="pane-events"><p class="empty-row">No events</p></div>
   </aside>
 </main>
 

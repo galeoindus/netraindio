@@ -119,3 +119,37 @@ export function jaccard(a, b) {
   for (const item of a) if (b.has(item)) shared += 1;
   return shared / (a.size + b.size - shared);
 }
+
+const SCRIPTS = [
+  [/[\u0900-\u097F]/, 'hi', 'Hindi'],
+  [/[\u0980-\u09FF]/, 'bn', 'Bengali'],
+  [/[\u0A00-\u0A7F]/, 'pa', 'Punjabi'],
+  [/[\u0A80-\u0AFF]/, 'gu', 'Gujarati'],
+  [/[\u0B80-\u0BFF]/, 'ta', 'Tamil'],
+  [/[\u0C00-\u0C7F]/, 'te', 'Telugu'],
+  [/[\u0C80-\u0CFF]/, 'kn', 'Kannada'],
+  [/[\u0D00-\u0D7F]/, 'ml', 'Malayalam'],
+  [/[\u0600-\u06FF]/, 'ar', 'Arabic'],
+  [/[\u0400-\u04FF]/, 'ru', 'Russian'],
+  [/[\u0590-\u05FF]/, 'he', 'Hebrew'],
+  [/[\u0E00-\u0E7F]/, 'th', 'Thai'],
+  [/[\u3040-\u30FF]/, 'ja', 'Japanese'],
+  [/[\u4E00-\u9FFF]/, 'zh', 'Chinese'],
+  [/[\uAC00-\uD7AF]/, 'ko', 'Korean'],
+];
+
+/**
+ * Which language is this text written in? Script-based, so it works for every
+ * script we can see without a model. Latin defaults to English; romanised Hindi
+ * ("khabar batao") is detected by a small word list.
+ */
+export function detectLanguage(text) {
+  const value = String(text ?? '');
+  for (const [pattern, code, name] of SCRIPTS) {
+    const hits = (value.match(new RegExp(pattern.source, 'g')) ?? []).length;
+    if (hits >= 2) return { code, name, script: pattern.source };
+  }
+  const romanHindi = /\b(kya|kaise|kyun|kab|kahan|batao|khabar|khabrein|chahiye|mujhe|hai|hain|nahi|kar|karo|dijiye|padho|likho|samjhao)\b/i;
+  if (romanHindi.test(value)) return { code: 'hi-Latn', name: 'Hindi (romanised)', script: 'latin' };
+  return { code: 'en', name: 'English', script: 'latin' };
+}
