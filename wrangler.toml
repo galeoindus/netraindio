@@ -1,0 +1,20 @@
+name = "swayam"
+main = "worker/index.js"
+compatibility_date = "2026-01-01"
+
+# Workers AI: the free daily allowance in your own account.
+# Comment this block out to run on the deterministic rule planner only.
+[ai]
+binding = "AI"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[observability]
+enabled = true
+
+# Optional: point the harness at a model on your own machine instead.
+# [vars]
+# LOCAL_LLM_URL = "http://127.0.0.1:11434"
+# LOCAL_LLM_MODEL = "qwen2.5:7b-instruct"

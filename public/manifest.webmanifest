@@ -1,0 +1,17 @@
+{
+  "name": "Swayam — एजेंटिक AI",
+  "short_name": "Swayam",
+  "description": "An agentic AI harness: event log, approval-gated plans, subagents, compaction.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b14",
+  "theme_color": "#080b14",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

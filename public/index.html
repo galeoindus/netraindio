@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Swayam — एजेंटिक AI</title>
+<meta name="description" content="Swayam: an agentic AI harness. Event log, approval-gated plans, parallel subagents, context compaction, tool loop." />
+<meta name="theme-color" content="#080b14" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">स</span>
+    <div>
+      <h1>Swayam</h1>
+      <p class="tagline">एजेंटिक AI — योजना, औज़ार, सबएजेंट, हर कदम दर्ज</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span id="model-badge" class="badge">model: …</span>
+    <a class="ghost" href="https://github.com/galeoindus/swayam" target="_blank" rel="noreferrer">GitHub</a>
+  </div>
+</header>
+
+<main>
+  <section class="workbench">
+    <div id="log" class="log">
+      <article class="entry bot">
+        <div class="entry-body">
+          <p><strong>मैं एक एजेंट हूँ।</strong> लक्ष्य दीजिए — मैं योजना बनाऊँगा, औज़ार चलाऊँगा, ज़रूरत पड़ी तो सबएजेंट भेजूँगा, और हर कदम event log में दर्ज करूँगा।</p>
+          <p class="hint">"योजना मोड" में मैं पहले योजना दिखाता हूँ और आपकी मंज़ूरी का इंतज़ार करता हूँ — तब तक कोई औज़ार नहीं चलता।</p>
+        </div>
+      </article>
+    </div>
+
+    <div id="suggestions" class="suggestions" role="group" aria-label="Example goals"></div>
+
+    <form id="run-form" class="composer">
+      <div class="skill-picker">
+        <label for="skill" class="sr-only">skill</label>
+        <select id="skill">
+          <option value="agent">/goal — काम पूरा करो</option>
+          <option value="plan">/plan — पहले योजना, फिर मंज़ूरी</option>
+        </select>
+      </div>
+      <label class="sr-only" for="goal">अपना लक्ष्य लिखिए</label>
+      <input id="goal" name="goal" type="text" autocomplete="off" maxlength="800"
+             placeholder="जैसे: https://example.com पढ़ो और सारांश दो / 12 km को miles में बदलो" />
+      <button id="run" type="submit">चलाइए</button>
+    </form>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <h2>आर्टिफ़ैक्ट</h2>
+      <div id="artifacts" class="artifacts"><p class="muted">अभी कुछ नहीं।</p></div>
+    </div>
+    <div class="card">
+      <h2>रनटाइम</h2>
+      <ul class="plain" id="runtime">
+        <li>event log — हर कदम, अपरिवर्तनीय</li>
+        <li>plan gate — लिखने से पहले मंज़ूरी</li>
+        <li>subagents — समानांतर काम</li>
+        <li>context compaction — लंबे काम में स्मृति</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>औज़ार</h2>
+      <ul id="tools" class="tools"><li class="muted">लोड हो रहा है…</li></ul>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <span>MIT License · अपना कोड, अपना हार्नेस</span>
+  <button id="events-toggle" class="ghost" type="button" aria-pressed="false">event log देखें</button>
+</footer>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>

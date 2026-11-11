@@ -1,0 +1,34 @@
+{
+  "name": "swayam",
+  "version": "2.0.0",
+  "description": "Swayam — an agentic AI harness: event log, approval-gated plans, parallel subagents, context compaction, tool loop. No vendor SDK, zero dependencies.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Bhola Kumar",
+  "keywords": [
+    "agent",
+    "agentic-ai",
+    "harness",
+    "subagents",
+    "event-log",
+    "cloudflare-workers",
+    "open-source"
+  ],
+  "homepage": "https://github.com/galeoindus/swayam",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/galeoindus/swayam.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/dev-server.mjs",
+    "test": "node --test test/",
+    "demo": "node scripts/demo.mjs",
+    "build": "node scripts/build-worker.mjs",
+    "deploy": "npx wrangler deploy"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
