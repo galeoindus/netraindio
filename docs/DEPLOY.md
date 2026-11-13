@@ -8,6 +8,24 @@ npx wrangler login     # free account, no card
 npx wrangler deploy    # reads wrangler.toml, binds AI + assets
 ```
 
+### Moving to a new Cloudflare account
+
+A Worker belongs to the account that deployed it, so a new account starts with
+none — and the things that fail first are never the code:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `Authentication error` / `10000` | the API token belongs to the old account | `npx wrangler login` again, or make a new token |
+| `Could not find account` / wrong account id | `CLOUDFLARE_ACCOUNT_ID` still points at the deleted account | copy the id from Workers & Pages → Account ID |
+| `binding AI not found` / `AI is not enabled` | Workers AI is off in the new account | dashboard → Workers AI → Enable |
+| `assets directory not found` | `wrangler deploy` ran outside the repository | run it from the repository root |
+| the site still shows the old build | the old account's route/custom domain is gone | the new Worker answers on `<name>.<subdomain>.workers.dev` |
+
+`wrangler deploy` creates the Worker on the first successful run, so there is no
+"project not found" step here. The workflow in `.github/workflows/deploy.yml`
+does the same on every push once `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` are set as repository secrets.
+
 Free plan: 100,000 requests/day, static assets, HTTPS on `*.workers.dev`, and a
 daily Workers AI allowance for the model.
 

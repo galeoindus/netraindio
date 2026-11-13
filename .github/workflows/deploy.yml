@@ -1,0 +1,61 @@
+# Publish netraindio to Cloudflare Workers.
+#
+# `wrangler deploy` creates the Worker on the first run, so a fresh Cloudflare
+# account needs no project step here — only credentials. The two things that
+# do break a move to a new account are the account id and the Workers AI
+# binding, and both are reported plainly by the step below.
+#
+# Needs two repository secrets:
+#   CLOUDFLARE_API_TOKEN   a token with "Workers Scripts: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  the account id on the Workers & Pages page
+#
+# Without them the job skips instead of failing.
+
+name: deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Do we have Cloudflare credentials?
+        id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to publish on every push."
+          fi
+
+      - name: Build the single-file worker
+        if: steps.check.outputs.ready == 'true'
+        run: npm run build
+
+      - name: Publish to Cloudflare Workers
+        if: steps.check.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
