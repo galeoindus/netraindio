@@ -24,7 +24,7 @@
   },
   "scripts": {
     "start": "node scripts/dev-server.mjs",
-    "test": "node --test test/",
+    "test": "node --test",
     "demo": "node scripts/demo.mjs",
     "build": "node scripts/build-worker.mjs",
     "deploy": "npx wrangler deploy"
